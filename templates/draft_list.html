@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Draft List - FPL Prediction Machine{% endblock %}
+
+{% block content %}
+    <div class="page-content">
+        <header class="page-header">
+            <h1>Draft List</h1>
+            <p class="page-description">Browse all players with filtering and sorting capabilities. Players can be transferred from the Player Analysis page.</p>
+        </header>
+
+        <main class="main-content">
+            <div class="draft-list-controls">
+                <div class="filter-section">
+                    <h3>Filters</h3>
+                    <div class="filter-controls">
+                        <div class="filter-group">
+                            <label for="filter-position">Position:</label>
+                            <select id="filter-position">
+                                <option value="">All Positions</option>
+                                <option value="1">Goalkeeper</option>
+                                <option value="2">Defender</option>
+                                <option value="3">Midfielder</option>
+                                <option value="4">Forward</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-team">Team:</label>
+                            <select id="filter-team">
+                                <option value="">All Teams</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-status">Status:</label>
+                            <select id="filter-status">
+                                <option value="">All Status</option>
+                                <option value="a">Available</option>
+                                <option value="d">Doubtful</option>
+                                <option value="n">Not Available</option>
+                                <option value="s">Suspended</option>
+                                <option value="u">Unavailable</option>
+                                <option value="i">Injured</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-price-min">Price Min (£m):</label>
+                            <input type="number" id="filter-price-min" step="0.1" min="0" placeholder="Min">
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-price-max">Price Max (£m):</label>
+                            <input type="number" id="filter-price-max" step="0.1" min="0" placeholder="Max">
+                        </div>
+                        <div class="filter-group">
+                            <button id="clear-filters" class="btn-clear">Clear Filters</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sort-section">
+                    <h3>Sort By</h3>
+                    <div class="sort-controls">
+                        <div class="sort-group">
+                            <label for="sort-column">Column:</label>
+                            <select id="sort-column">
+                                <option value="last_5_games_points">Last 5 Games Points</option>
+                                <option value="last_3_games_points">Last 3 Games Points</option>
+                                <option value="total_points">Total Points</option>
+                                <option value="points_per_game">Points Per Game</option>
+                                <option value="points_per_million">Points Per £M</option>
+                                <option value="goals_scored">Goals</option>
+                                <option value="assists">Assists</option>
+                                <option value="clean_sheets">Clean Sheets</option>
+                                <option value="ict_index">ICT Index</option>
+                                <option value="form">Form</option>
+                                <option value="selected_by_percent">Selected By %</option>
+                                <option value="now_cost">Price</option>
+                                <option value="web_name">Player Name</option>
+                                <option value="team_name">Team</option>
+                            </select>
+                        </div>
+                        <div class="sort-group">
+                            <label for="sort-order">Order:</label>
+                            <select id="sort-order">
+                                <option value="desc">Descending</option>
+                                <option value="asc">Ascending</option>
+                            </select>
+                        </div>
+                        <div class="sort-group">
+                            <button id="apply-sort" class="btn-apply">Apply Sort</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="draft-list-save-section">
+                <h3>Save & Load Draft List</h3>
+                <div class="save-controls">
+                    <div class="team-id-group">
+                        <label for="fpl-team-id-input">FPL Team ID:</label>
+                        <input 
+                            type="text" 
+                            id="fpl-team-id-input" 
+                            class="fpl-team-id-input" 
+                            placeholder="e.g., 3198719"
+                            value="3198719"
+                        >
+                        <button id="copy-team-id-btn" class="copy-btn" title="Copy example team ID">📋</button>
+                    </div>
+                    <div class="save-actions">
+                        <button id="save-draft-btn" class="save-draft-btn">
+                            💾 Save Draft List
+                        </button>
+                        <button id="load-draft-btn" class="load-draft-btn">
+                            📥 Load Draft List
+                        </button>
+                    </div>
+                </div>
+                <div id="save-status" class="save-status"></div>
+            </div>
+            
+            <div class="draft-list-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Total Players:</span>
+                    <span class="stat-value" id="total-players">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Filtered Players:</span>
+                    <span class="stat-value" id="filtered-players">0</span>
+                </div>
+            </div>
+
+            <div id="draft-list-container" class="draft-list-container">
+                <div class="loading-placeholder">Loading player data...</div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/draft_list.js') }}?v=2"></script>
+{% endblock %}

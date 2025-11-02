@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Best Formation - FPL Prediction Machine{% endblock %}
+
+{% block content %}
+    <div class="page-content">
+        <header class="page-header">
+            <h1>Best Formation</h1>
+            <p class="page-description">Analyze formations and select your optimal team lineup</p>
+        </header>
+
+        <main class="main-content">
+            <!-- Team Value Display -->
+            <section class="section">
+                <div class="team-value-card">
+                    <div class="team-value-header">
+                        <h2>Team Value</h2>
+                    </div>
+                    <div class="team-value-content">
+                        <div class="value-item">
+                            <span class="value-label">Total Value:</span>
+                            <span class="value-amount" id="total-team-value">£0.0m</span>
+                        </div>
+                        <div class="value-item">
+                            <span class="value-label">Starting XI:</span>
+                            <span class="value-amount" id="starting-xi-value">£0.0m</span>
+                        </div>
+                        <div class="value-item">
+                            <span class="value-label">Bench:</span>
+                            <span class="value-amount" id="bench-value">£0.0m</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Formation Comparison -->
+            <section class="section">
+                <h2 class="section-title">Formation Points Comparison</h2>
+                <p class="section-subtitle">Points accumulated by each formation across all games</p>
+                <div id="formations-container" class="formations-grid">
+                    <div class="loading-placeholder">Loading formation data...</div>
+                </div>
+            </section>
+
+            <!-- Selected Players from Player Analysis -->
+            <section class="section">
+                <div class="section-header-with-action">
+                    <div>
+                        <h2 class="section-title">Your Selected Players</h2>
+                        <p class="section-subtitle">Players selected from Player Analysis page</p>
+                    </div>
+                    <button id="refresh-players-btn" class="refresh-btn" title="Refresh from Player Analysis">
+                        <span>🔄</span> Refresh
+                    </button>
+                </div>
+                <div id="selected-players-display" class="selected-players-display">
+                    <div class="loading-placeholder">Loading selected players...</div>
+                </div>
+            </section>
+
+            <!-- Formation Builder -->
+            <section class="section">
+                <h2 class="section-title">Build Your Formation</h2>
+                <p class="section-subtitle">Select players for each position in your starting XI</p>
+                
+                <div class="formation-selector">
+                    <label for="formation-select">Choose Formation:</label>
+                    <select id="formation-select" class="formation-dropdown">
+                        <option value="3-4-3">3-4-3</option>
+                        <option value="4-4-2">4-4-2</option>
+                        <option value="4-3-3">4-3-3</option>
+                        <option value="3-5-2">3-5-2</option>
+                        <option value="5-3-2">5-3-2</option>
+                        <option value="5-4-1">5-4-1</option>
+                        <option value="4-5-1">4-5-1</option>
+                    </select>
+                </div>
+
+                <div id="formation-builder" class="formation-builder">
+                    <!-- Formation will be dynamically rendered here -->
+                </div>
+            </section>
+
+            <!-- Transfer Button -->
+            <section class="section">
+                <div class="transfer-section">
+                    <button id="transfer-to-propose-btn" class="transfer-btn">
+                        Transfer Selected Players to Propose Players Page
+                    </button>
+                    <p class="transfer-info">This will save your formation selections for the Propose Players page</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/best_formation.js') }}?v=1"></script>
+{% endblock %}
+

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Player Analysis - FPL Prediction Machine{% endblock %}
+
+{% block content %}
+    <div class="page-content">
+        <header class="page-header">
+            <h1>Player Analysis</h1>
+            <p class="page-description">Detailed analysis of FPL players and Premier League standings</p>
+        </header>
+
+        <main class="main-content">
+            <div id="selected-teams-info" class="selected-teams-banner"></div>
+            
+            <section class="section" id="players-section">
+                <div class="section-header-with-action">
+                    <h2 class="section-title">Top Players by Position (Last 5 Games)</h2>
+                    <div class="transfer-buttons-group">
+                        <button id="transfer-to-draft-list-btn" class="transfer-to-draft-list-btn" title="Transfer selected players to Draft List page">
+                            <span>📋</span> Transfer to Draft List
+                        </button>
+                        <button id="transfer-to-formation-btn" class="transfer-to-formation-btn" title="Transfer selected players to Best Formation page">
+                            <span>⚽</span> Transfer to Best Formation
+                        </button>
+                    </div>
+                </div>
+                <div id="players-container" class="players-container">
+                    <div class="loading-placeholder">Loading player data...</div>
+                </div>
+            </section>
+            
+            <section class="section" id="table-section">
+                <h2 class="section-title">Premier League Table</h2>
+                <div id="league-table-container" class="table-container">
+                    <div class="loading-placeholder">Loading league table...</div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/player_analysis.js') }}?v=5"></script>
+{% endblock %}
+

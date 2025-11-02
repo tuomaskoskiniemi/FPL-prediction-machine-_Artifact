@@ -246,6 +246,7 @@ function displayLeagueTable(table) {
                     <th>GA</th>
                     <th>GD</th>
                     <th>Points</th>
+                    <th>Last 5 Games</th>
                     <th>Form</th>
                 </tr>
             </thead>
@@ -256,10 +257,11 @@ function displayLeagueTable(table) {
                     const draw = (team.draw !== undefined && team.draw !== null) ? team.draw : 0;
                     const loss = (team.loss !== undefined && team.loss !== null) ? team.loss : 0;
                     const form = (team.form !== undefined && team.form !== null) ? String(team.form) : '';
+                    const last5Games = team.last_5_games || [];
                     
                     // Debug log for first team
                     if (index === 0) {
-                        console.log('First team data:', { win, draw, loss, form, team });
+                        console.log('First team data:', { win, draw, loss, form, team, last5Games });
                     }
                     
                     return `
@@ -279,6 +281,7 @@ function displayLeagueTable(table) {
                             ${team.goal_difference > 0 ? '+' : ''}${team.goal_difference || 0}
                         </td>
                         <td class="stats-cell points">${team.points || 0}</td>
+                        <td class="stats-cell last-5-games">${formatLast5Games(last5Games)}</td>
                         <td class="stats-cell form-badge">${formatTeamForm(form)}</td>
                     </tr>
                 `;
@@ -330,6 +333,52 @@ function formatTeamForm(form) {
             case 'L': return '<span style="color: #dc3545; font-weight: bold;">L</span>';
             default: return `<span style="color: #6c757d;">${char}</span>`;
         }
+    }).join('');
+}
+
+/**
+ * Format last 5 games results
+ */
+function formatLast5Games(games) {
+    if (!games || games.length === 0) {
+        return '<span style="color: #6c757d;">-</span>';
+    }
+    
+    // Games array has most recent first (index 0), but for display we want
+    // oldest on left, newest on right (like typical form: "W W L D W")
+    const reversedGames = [...games].reverse();
+    
+    return reversedGames.map(game => {
+        const result = game.result || '-';
+        const opponent = game.opponent || '';
+        const teamScore = game.team_score || 0;
+        const opponentScore = game.opponent_score || 0;
+        const isHome = game.is_home || false;
+        
+        let resultColor;
+        let resultBg;
+        switch(result) {
+            case 'W':
+                resultColor = '#28a745';
+                resultBg = '#d4edda';
+                break;
+            case 'D':
+                resultColor = '#ffc107';
+                resultBg = '#fff3cd';
+                break;
+            case 'L':
+                resultColor = '#dc3545';
+                resultBg = '#f8d7da';
+                break;
+            default:
+                resultColor = '#6c757d';
+                resultBg = '#e9ecef';
+        }
+        
+        const scoreText = game.result === '-' ? '' : ` ${teamScore}-${opponentScore}`;
+        const venue = isHome ? 'H' : 'A';
+        
+        return `<span class="last-game-result" style="background-color: ${resultBg}; color: ${resultColor}; font-weight: bold; padding: 2px 6px; border-radius: 3px; margin: 0 2px; display: inline-block; min-width: 40px; text-align: center;" title="${opponent}${scoreText} (${venue})">${result}</span>`;
     }).join('');
 }
 

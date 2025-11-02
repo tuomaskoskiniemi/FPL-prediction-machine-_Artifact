@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Transfer Proposals - FPL Prediction Machine{% endblock %}
+
+{% block content %}
+    <div class="page-content">
+        <header class="page-header">
+            <h1>Transfer Proposals</h1>
+            <p class="page-description">Manage player transfers and track budget impact</p>
+        </header>
+
+        <main class="main-content">
+            <!-- Team Budget Section -->
+            <section class="section">
+                <div class="budget-display-card">
+                    <h2 class="budget-card-title">Team Budget</h2>
+                    <div class="budget-grid">
+                        <div class="budget-item">
+                            <span class="budget-label">Current Budget:</span>
+                            <span class="budget-value" id="current-budget">£0.0m</span>
+                        </div>
+                        <div class="budget-item">
+                            <span class="budget-label">Current Team Value:</span>
+                            <span class="budget-value" id="current-team-value">£0.0m</span>
+                        </div>
+                        <div class="budget-item">
+                            <span class="budget-label">Budget Impact:</span>
+                            <span class="budget-value" id="budget-impact-display">£0.0m</span>
+                        </div>
+                        <div class="budget-item budget-item-highlight">
+                            <span class="budget-label">Projected Budget After Transfers:</span>
+                            <span class="budget-value budget-value-highlight" id="projected-budget">£0.0m</span>
+                        </div>
+                        <div class="budget-item budget-item-highlight">
+                            <span class="budget-label">Projected Team Value After Transfers:</span>
+                            <span class="budget-value budget-value-highlight" id="projected-team-value">£0.0m</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Summary Section -->
+            <section class="section">
+                <div class="transfer-controls">
+                    <div class="transfer-summary">
+                        <div class="summary-item">
+                            <span class="summary-label">Players to Transfer Out:</span>
+                            <span class="summary-value" id="transfer-out-count">0</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Players to Transfer In:</span>
+                            <span class="summary-value" id="transfer-in-count">0</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Budget Impact:</span>
+                            <span class="summary-value" id="budget-impact">£0.0m</span>
+                        </div>
+                    </div>
+                    <button id="apply-transfers-btn" class="apply-transfers-btn" disabled>Apply Transfers</button>
+                </div>
+            </section>
+
+            <!-- Player Pick Menu Section -->
+            <section class="section">
+                <div class="player-pick-section">
+                    <div class="player-pick-header">
+                        <h2 class="section-title">Select Players to Transfer In</h2>
+                        <div class="player-pick-filters">
+                            <div class="filter-group">
+                                <label for="position-filter">Position:</label>
+                                <select id="position-filter" class="filter-select">
+                                    <option value="">All Positions</option>
+                                    <option value="1">Goalkeepers</option>
+                                    <option value="2">Defenders</option>
+                                    <option value="3">Midfielders</option>
+                                    <option value="4">Forwards</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label for="value-filter">Value Range:</label>
+                                <select id="value-filter" class="filter-select">
+                                    <option value="">All Values</option>
+                                    <option value="0-5">£0m - £5m</option>
+                                    <option value="5-7">£5m - £7m</option>
+                                    <option value="7-10">£7m - £10m</option>
+                                    <option value="10-15">£10m - £15m</option>
+                                    <option value="15-20">£15m - £20m</option>
+                                    <option value="20-99">£20m+</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label for="sort-by">Sort By:</label>
+                                <select id="sort-by" class="filter-select">
+                                    <option value="value-asc">Value (Low to High)</option>
+                                    <option value="value-desc">Value (High to Low)</option>
+                                    <option value="points-desc">Total Points</option>
+                                    <option value="form-desc">Form</option>
+                                    <option value="ppg-desc">Points Per Game</option>
+                                </select>
+                            </div>
+                            <button id="clear-filters-btn" class="clear-filters-btn">Clear Filters</button>
+                        </div>
+                    </div>
+                    <div id="player-pick-container" class="player-pick-container">
+                        <div class="loading-placeholder">Loading players...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Transfer Sections -->
+            <section class="section">
+                <div class="transfer-grid">
+                    <div class="transfer-column">
+                        <h3 class="transfer-column-title">Transfer Out</h3>
+                        <div id="transfer-out-container" class="transfer-players-list">
+                            <p class="empty-transfer-list">No players selected to transfer out. Click on players from your current team to transfer them out.</p>
+                        </div>
+                    </div>
+                    <div class="transfer-column">
+                        <h3 class="transfer-column-title">Transfer In</h3>
+                        <div id="transfer-in-container" class="transfer-players-list">
+                            <p class="empty-transfer-list">No players selected to transfer in. Click on players from potential trades or proposed players to transfer them in.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/transfers.js') }}?v=1"></script>
+{% endblock %}

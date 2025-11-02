@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Propose Players - FPL Prediction Machine{% endblock %}
+
+{% block content %}
+    <div class="page-content">
+        <header class="page-header">
+            <h1>Propose Players</h1>
+            <p class="page-description">Review players from Best Formation and propose them for transfers</p>
+        </header>
+
+        <main class="main-content">
+            <div id="propose-players-container">
+                <div class="loading-placeholder">Loading data...</div>
+            </div>
+        </main>
+        
+        <!-- Refresh button -->
+        <div style="text-align: center; margin-top: 30px;">
+            <button id="refresh-proposal-btn" class="refresh-btn" style="margin: 0 auto;">
+                <span>🔄</span> Refresh from Best Formation
+            </button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/propose_players.js') }}?v=1"></script>
+{% endblock %}
+

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Current Team - FPL Prediction Machine{% endblock %}
+
+{% block content %}
+    <div class="page-content">
+        <header class="page-header">
+            <h1>Current Team</h1>
+            <p class="page-description">View and manage your current Fantasy Premier League team</p>
+        </header>
+
+        <main class="main-content">
+            <!-- Team Link Input Section -->
+            <section class="section">
+                <div class="team-link-section">
+                    <h2 class="section-title">Enter Your FPL Team</h2>
+                    <p class="section-subtitle">Enter your FPL team link or team ID to load your squad</p>
+                    <div class="team-link-input-group">
+                        <input 
+                            type="text" 
+                            id="team-link-input" 
+                            class="team-link-input" 
+                            placeholder="https://fantasy.premierleague.com/entry/1234567/event/1 or 1234567"
+                        >
+                        <button id="load-team-btn" class="load-team-btn">Load Team</button>
+                        <button id="clear-team-btn" class="clear-team-btn" style="display: none;">Clear Team</button>
+                    </div>
+                    <div id="team-link-status" class="team-link-status"></div>
+                </div>
+            </section>
+
+            <!-- Team Overview -->
+            <section class="section" id="team-overview-section" style="display: none;">
+                <div class="team-overview-card">
+                    <h2 class="section-title">Team Overview</h2>
+                    <div class="team-overview-grid">
+                        <div class="overview-item">
+                            <span class="overview-label">Team Name:</span>
+                            <span class="overview-value" id="team-name-value">-</span>
+                        </div>
+                        <div class="overview-item">
+                            <span class="overview-label">Total Value:</span>
+                            <span class="overview-value" id="team-value-value">£0.0m</span>
+                        </div>
+                        <div class="overview-item">
+                            <span class="overview-label">Bank:</span>
+                            <span class="overview-value" id="team-bank-value">£0.0m</span>
+                        </div>
+                        <div class="overview-item">
+                            <span class="overview-label">Total Points:</span>
+                            <span class="overview-value" id="team-points-value">0</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Current Team Players -->
+            <section class="section" id="current-team-section" style="display: none;">
+                <h2 class="section-title">Your Current Team</h2>
+                <div id="current-team-container" class="players-container">
+                    <div class="loading-placeholder">Loading current team...</div>
+                </div>
+            </section>
+
+            <!-- Proposed Players from Previous Page -->
+            <section class="section" id="proposed-players-section" style="display: none;">
+                <h2 class="section-title">Proposed Players</h2>
+                <div id="proposed-players-container" class="players-container">
+                    <div class="loading-placeholder">Loading proposed players...</div>
+                </div>
+            </section>
+
+            <!-- Potential Trade-In Players -->
+            <section class="section" id="potential-trade-section" style="display: none;">
+                <h2 class="section-title">Potential Trade-In Players</h2>
+                <div id="potential-trade-container" class="players-container">
+                    <div class="loading-placeholder">Analyzing potential trades...</div>
+                </div>
+            </section>
+
+            <!-- Transfer Section -->
+            <section class="section" id="transfer-section" style="display: none;">
+                <h2 class="section-title">Transfer Proposals</h2>
+                <p class="section-subtitle">Select players to transfer out and in</p>
+                
+                <div class="transfer-controls">
+                    <div class="transfer-summary">
+                        <div class="summary-item">
+                            <span class="summary-label">Players to Transfer Out:</span>
+                            <span class="summary-value" id="transfer-out-count">0</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Players to Transfer In:</span>
+                            <span class="summary-value" id="transfer-in-count">0</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Budget Impact:</span>
+                            <span class="summary-value" id="budget-impact">£0.0m</span>
+                        </div>
+                    </div>
+                    <button id="apply-transfers-btn" class="apply-transfers-btn" disabled>Apply Transfers</button>
+                </div>
+
+                <div class="transfer-grid">
+                    <div class="transfer-column">
+                        <h3 class="transfer-column-title">Transfer Out</h3>
+                        <div id="transfer-out-container" class="transfer-players-list">
+                            <!-- Players to transfer out -->
+                        </div>
+                    </div>
+                    <div class="transfer-column">
+                        <h3 class="transfer-column-title">Transfer In</h3>
+                        <div id="transfer-in-container" class="transfer-players-list">
+                            <!-- Players to transfer in -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/current_team.js') }}?v=1"></script>
+{% endblock %}
+

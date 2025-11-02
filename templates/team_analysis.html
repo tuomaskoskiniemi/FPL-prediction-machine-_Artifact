@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Team Analysis - FPL Prediction Machine{% endblock %}
+
+{% block content %}
+    <div class="page-content">
+        <header class="page-header">
+            <h1>Team Analysis</h1>
+            <p class="page-description">Analyze Premier League teams' performance, strengths, and upcoming fixtures</p>
+        </header>
+
+        <main class="main-content">
+            <div id="team-analysis-container">
+                <div class="loading-placeholder">Loading team analysis data...</div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/team_analysis.js') }}?v=1"></script>
+{% endblock %}
+

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FPL Prediction Machine - Pick Your Best Eleven{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3">
+</head>
+<body>
+    <!-- Top Navigation Menu -->
+    <nav class="top-nav">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="{{ url_for('index') }}">⚽ FPL Prediction Machine</a>
+            </div>
+            <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <ul class="nav-menu" id="nav-menu">
+                <li><a href="{{ url_for('index') }}" class="nav-link {% if current_page == 'home' %}active{% endif %}">Home</a></li>
+                <li><a href="{{ url_for('team_analysis') }}" class="nav-link {% if current_page == 'team-analysis' %}active{% endif %}">Team Analysis</a></li>
+                <li><a href="{{ url_for('player_analysis') }}" class="nav-link {% if current_page == 'player-analysis' %}active{% endif %}">Player Analysis</a></li>
+                <li><a href="{{ url_for('best_formation') }}" class="nav-link {% if current_page == 'best-formation' %}active{% endif %}">Best Formation</a></li>
+                <li><a href="{{ url_for('propose_players') }}" class="nav-link {% if current_page == 'propose-players' %}active{% endif %}">Propose Players</a></li>
+                <li><a href="{{ url_for('current_team') }}" class="nav-link {% if current_page == 'current-team' %}active{% endif %}">Current Team</a></li>
+                <li><a href="{{ url_for('transfers') }}" class="nav-link {% if current_page == 'transfers' %}active{% endif %}">Transfers</a></li>
+                <li><a href="{{ url_for('draft_list') }}" class="nav-link {% if current_page == 'draft-list' %}active{% endif %}">Draft List</a></li>
+                <li><a href="{{ url_for('adjustments') }}" class="nav-link {% if current_page == 'adjustments' %}active{% endif %}">Adjustments</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container">
+        {% block content %}{% endblock %}
+        
+        <!-- Footer -->
+        <footer class="footer">
+            <p>FPL Prediction Machine - Data from Fantasy Premier League API</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=3"></script>
+    <script src="{{ url_for('static', filename='js/navigation.js') }}?v=1"></script>
+</body>
+</html>
+
