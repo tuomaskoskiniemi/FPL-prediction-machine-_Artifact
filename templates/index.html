@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FPL Prediction Machine - Pick Your Best Eleven</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1 class="title">⚽ FPL Prediction Machine</h1>
+            <p class="description">Pick best eleven for FPL<br>
+            This application is creating player pick process for FPL managers.</p>
+            <button id="update-btn" class="update-btn">
+                <span class="btn-text">Update Data</span>
+                <span class="btn-icon" id="update-icon">⚽</span>
+            </button>
+            <div id="loading-indicator" class="loading-indicator hidden">
+                <div class="football-rolling">⚽</div>
+                <span class="loading-text">Updating data...</span>
+            </div>
+            <div id="status-message" class="status-message"></div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- This Round Games Section -->
+            <section class="section" id="fixtures-section">
+                <h2 class="section-title">This Round Games</h2>
+                <div id="gameweek-info" class="gameweek-info"></div>
+                <div id="fixtures-container" class="fixtures-container">
+                    <div class="loading-placeholder">Loading fixtures...</div>
+                </div>
+            </section>
+
+            <!-- Premier League Table Section -->
+            <section class="section" id="table-section">
+                <h2 class="section-title">Premier League Table</h2>
+                <div id="league-table-container" class="table-container">
+                    <div class="loading-placeholder">Loading league table...</div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>FPL Prediction Machine - Data from Fantasy Premier League API</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=2"></script>
+</body>
+</html>
+
