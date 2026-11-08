@@ -36,6 +36,8 @@ SEASON_DATA = os.path.join(PROJECT, "FPL Data")
 sys.path.insert(0, ARTIFACT)
 import build_sections as bs  # noqa: E402
 from build_browser import browser_payload  # noqa: E402
+sys.path.insert(0, PROJECT)
+from src.fpl_team import fetch_manager_team, FPLTeamError  # noqa: E402
 
 BASE_URL = "https://fantasy.premierleague.com/api"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
@@ -184,8 +186,149 @@ def load_player_details(expected_players):
     return details, None
 
 
+NL = chr(10)
+
+DATA = os.path.join(ARTIFACT, "data")
+TEAM_FILE = os.path.join(DATA, "team.json")
+
+
+def remembered_team():
+    """The team id saved by an earlier --team run, if any."""
+    try:
+        with open(TEAM_FILE, encoding="utf-8") as f:
+            return (json.load(f) or {}).get("team")
+    except (OSError, ValueError):
+        return None
+
+
+def remember_team(team_id):
+    os.makedirs(DATA, exist_ok=True)
+    with open(TEAM_FILE, "w", encoding="utf-8") as f:
+        json.dump({"team": team_id}, f)
+
+
+def squad_rows(players):
+    """One table row per player, with the picking principles shown."""
+    out = []
+    for p in players:
+        marks = ""
+        if p["is_captain"]:
+            marks = '<span class="cap">C</span>'
+        elif p["is_vice_captain"]:
+            marks = '<span class="cap vcap">V</span>'
+        if p["mean_defence"] and p["position_id"] in (1, 2):
+            marks += (' <span class="dmark small" title="One of the eight teams conceding'
+                      ' fewest goals">D</span>')
+        if p["flagged"]:
+            chance = p["chance_of_playing"]
+            label = "OUT" if chance is None else f"{chance}%"
+            title = bs.esc(p["news"] or "Not fully available")
+            status = f'<span class="flagwarn" title="{title}">{label}</span>'
+        else:
+            status = '<span class="ok">Available</span>'
+        out.append(
+            "<tr>" + NL
+            + f'<td class="team"><span class="short">{bs.esc(p["web_name"])}</span>'
+              f"{marks}</td>" + NL
+            + f'<td class="mid quiet">{bs.esc(p["team_short"])}</td>' + NL
+            + f'<td class="mid quiet">{bs.esc(p["position"])}</td>' + NL
+            + f'<td class="num">&pound;{p["price"]:.1f}m</td>' + NL
+            + f'<td class="num strong">{p["points"]}</td>' + NL
+            + f'<td class="num">{p["form"]:.1f}</td>' + NL
+            + f'<td class="num quiet">{p["minutes"]:,}</td>' + NL
+            + f'<td class="num">{p["goals"]}</td>' + NL
+            + f'<td class="num">{p["assists"]}</td>' + NL
+            + f"<td>{status}</td>" + NL
+            + "</tr>")
+    return NL.join(out)
+
+
+def squad_section(html, squad, problem, season):
+    """Fill the Current team tab, or explain how to point it at a team."""
+    if problem or not squad:
+        html = replace_marked(html, "squad-eyebrow", "Not connected yet")
+        html = replace_marked(html, "squad-heading", "Point this at your team")
+        html = replace_marked(
+            html, "squad-lede",
+            "This tab shows your real squad &#8212; the eleven, the bench, what it is worth "
+            "and who is carrying a knock &#8212; read straight from the Fantasy Premier "
+            "League API. It just needs to know which team is yours."
+            + (f" <strong>{bs.esc(problem)}</strong>" if problem else ""))
+        html = replace_marked(
+            html, "squad-tiles",
+            '<div class="tile"><b>&#8212;</b><span>Squad value</span></div>'
+            '<div class="tile"><b>&#8212;</b><span>In the bank</span></div>'
+            '<div class="tile"><b>&#8212;</b><span>Overall points</span></div>'
+            '<div class="tile"><b>&#8212;</b><span>Flagged players</span></div>')
+        setup = ('<tr><td colspan="10"><div class="setup">'
+                 "<p>Run this once with your team link or id, and every refresh from then on "
+                 "keeps the squad current:</p>"
+                 "<code>python refresh_artifact.py --team 1234567</code>"
+                 "<p>The id is the number in your team's address on the Fantasy Premier "
+                 "League site. The link works too.</p>"
+                 "</div></td></tr>")
+        html = replace_marked(html, "squad-xi", setup)
+        html = replace_marked(html, "squad-bench", "")
+        html = replace_marked(html, "xi-sub", "not loaded")
+        html = replace_marked(html, "bench-sub", "not loaded")
+        html = replace_marked(
+            html, "squad-caption",
+            "Nothing about your team is sent anywhere: the squad is read from the public API "
+            "when you refresh, and written into this page as ordinary text.")
+        return html
+
+    entry, money, gw = squad["entry"], squad["money"], squad["gameweek"]
+    flagged = squad["flagged"]
+
+    html = replace_marked(html, "squad-eyebrow", "Your squad")
+    html = replace_marked(html, "squad-heading", bs.esc(entry["team_name"] or "Current team"))
+    html = replace_marked(
+        html, "squad-lede",
+        f"{bs.esc(entry['manager'])}&#8217;s squad as it stood at the gameweek "
+        f"{entry['gameweek']} deadline, read from the Fantasy Premier League API. "
+        + (f"{len(flagged)} player{'s' if len(flagged) != 1 else ''} carrying a flag."
+           if flagged else "Nobody is carrying an injury flag."))
+    rank = f"{entry['overall_rank']:,}" if entry.get("overall_rank") else "&#8212;"
+    html = replace_marked(
+        html, "squad-tiles",
+        f'<div class="tile"><b>&pound;{money["squad_value"]:.1f}m</b>'
+        "<span>Squad value</span></div>"
+        f'<div class="tile"><b>&pound;{money["bank"]:.1f}m</b><span>In the bank</span></div>'
+        f'<div class="tile"><b>{entry["overall_points"]}</b><span>Overall points</span></div>'
+        f'<div class="tile"><b>{rank}</b><span>Overall rank</span></div>')
+    html = replace_marked(html, "squad-xi", NL + squad_rows(squad["starting_xi"]) + NL)
+    html = replace_marked(html, "squad-bench", NL + squad_rows(squad["bench"]) + NL)
+    captain = squad["captain"]["web_name"] if squad["captain"] else "nobody"
+    html = replace_marked(
+        html, "xi-sub",
+        f"gameweek {entry['gameweek']} &#183; {gw['points']} pts &#183; captain "
+        f"{bs.esc(captain)}")
+    html = replace_marked(
+        html, "bench-sub",
+        f"{gw['points_on_bench']} points left on it" if gw.get("points_on_bench") is not None
+        else "four players")
+    names = ", ".join(bs.esc(p["web_name"]) for p in flagged)
+    html = replace_marked(
+        html, "squad-caption",
+        "<strong>C</strong> is the captain and <strong>V</strong> the vice. "
+        '<span class="dmark small">D</span> marks a defender or keeper from one of the eight '
+        "meanest defences. "
+        + (f"Held back by the pick process: {names}. " if flagged else "")
+        + f"Squad value is what the game says your players are worth, not the sum of "
+          f"today&#8217;s prices (&pound;{money['value_at_today_prices']:.1f}m) &#8212; the "
+          "game values each player at what you paid plus half of any rise.")
+    return html
+
+
 def main():
-    skip_players = "--no-players" in sys.argv[1:]
+    argv = sys.argv[1:]
+    skip_players = "--no-players" in argv
+    team_arg = None
+    if "--team" in argv:
+        i = argv.index("--team")
+        if i + 1 >= len(argv):
+            raise SystemExit("--team needs a team id or a link to the team page.")
+        team_arg = argv[i + 1]
 
     print("1/3 Fetching bootstrap-static...")
     bootstrap = fetch_json(f"{BASE_URL}/bootstrap-static/", "bootstrap-static")
@@ -444,6 +587,18 @@ def main():
         "beside their name, and defenders and keepers from the eight meanest defences keep "
         'their <span class="dmark small">D</span>.')
 
+    # --- the manager's own squad (Current team) --------------------------
+    squad, squad_problem = None, None
+    wanted = team_arg or remembered_team()
+    if wanted:
+        try:
+            squad = fetch_manager_team(wanted, client=None, bootstrap=bootstrap,
+                                       fixtures=fixtures)
+            remember_team(squad["entry"]["id"])
+        except FPLTeamError as exc:
+            squad_problem = str(exc)
+    html = squad_section(html, squad, squad_problem, season)
+
     # --- the current round ------------------------------------------------
     html = replace_marked(html, "round-eyebrow", "The coming round")
     html = replace_marked(html, "round-heading",
@@ -476,6 +631,13 @@ def main():
     print(f"  Hardest next five: {ahead[-1]['short']} {ahead[-1]['fdr5']:.2f}")
     print(f"  Top scorer:        {max(players, key=lambda p: p['pts'])['web']} "
           f"{max(p['pts'] for p in players)} pts")
+    if squad:
+        print(f"  Your squad:        {squad['entry']['team_name']} "
+              f"({squad['money']['squad_value']:.1f}m, {len(squad['flagged'])} flagged)")
+    elif squad_problem:
+        print(f"  Current team tab NOT filled: {squad_problem}")
+    else:
+        print("  Current team tab:  no team set - run with --team <id-or-link>")
     if note:
         print(f"  Last-five player block NOT refreshed: {note}")
     print(f"\nUpdated {PAGE}")
