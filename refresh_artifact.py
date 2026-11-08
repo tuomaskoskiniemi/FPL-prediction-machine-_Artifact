@@ -35,6 +35,7 @@ SEASON_DATA = os.path.join(PROJECT, "FPL Data")
 
 sys.path.insert(0, ARTIFACT)
 import build_sections as bs  # noqa: E402
+from build_browser import browser_payload  # noqa: E402
 
 BASE_URL = "https://fantasy.premierleague.com/api"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
@@ -426,6 +427,22 @@ def main():
         "player with one good cameo otherwise tops every one of these tables. Prices are "
         "current, not starting prices, so a player who has already risen is rated at what he "
         "would cost you today.")
+
+    # --- the player browser and the watchlist ----------------------------
+    html = replace_marked(html, "browser-data", browser_payload(bootstrap, defence_ids))
+    html = replace_marked(
+        html, "browser-lede",
+        f"All {len(players)} players in the game, filtered by team and position, with every "
+        f"statistic the API publishes &#8212; {len(bootstrap.get('element_stats', []))} of "
+        "them, plus price, form, ownership and availability. Sort on any column by clicking "
+        "its heading, and star anyone worth watching to send them to the next tab.")
+    html = replace_marked(
+        html, "browser-caption",
+        "Columns come from the API's own list of statistics, so anything it starts "
+        "publishing turns up here without a change to this page. A dash means the API "
+        "reports nothing for that player. Players carrying an injury or doubt are marked "
+        "beside their name, and defenders and keepers from the eight meanest defences keep "
+        'their <span class="dmark small">D</span>.')
 
     # --- the current round ------------------------------------------------
     html = replace_marked(html, "round-eyebrow", "The coming round")
