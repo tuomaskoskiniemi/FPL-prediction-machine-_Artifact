@@ -8,6 +8,7 @@ from flask import Flask, render_template, jsonify
 from flask_cors import CORS
 import time
 from src.fpl_api_client import FPLAPIClient
+from src.fpl_team import fetch_manager_team, FPLTeamError
 from src.data_processor import (
     get_current_gameweek,
     get_current_gameweek_fixtures,
@@ -303,146 +304,132 @@ def league_table():
 @app.route('/api/team/<int:team_id>', methods=['GET'])
 def get_team_data(team_id):
     """
-    Fetch FPL team data for a given team ID.
-    Returns team information including picks, transfers, and player data.
+    Fetch a manager's squad for a team id.
+
+    The work is done by src.fpl_team.fetch_manager_team; this route adapts it to
+    the shape the Current Team page has always consumed, and adds the richer
+    structure under 'detail' for anything new.
     """
-    from flask import request
-    import requests
-    
     try:
         client = FPLAPIClient()
-        
-        # Get bootstrap static for player information
+
         if (_data_cache['bootstrap_static'] is None or _should_refresh_cache()):
             data = client.fetch_all_data()
             _data_cache['bootstrap_static'] = data.get('bootstrap_static')
             _data_cache['fixtures'] = data.get('fixtures')
-        
+            _data_cache['last_update'] = time.time()
+
         bootstrap_static = _data_cache['bootstrap_static']
-        
-        # Get current gameweek
-        current_gw = get_current_gameweek(bootstrap_static)
-        
-        # Fetch team detail from FPL API
-        team_data = client.fetch_team_detail(team_id)
-        
-        # Try to get picks from current gameweek endpoint
-        picks = []
-        if current_gw:
-            try:
-                picks_url = f"{client.BASE_URL}/entry/{team_id}/event/{current_gw}/picks/"
-                picks_response = client.session.get(picks_url)
-                if picks_response.status_code == 200:
-                    picks_data = picks_response.json()
-                    picks = picks_data.get('picks', [])
-            except:
-                # Fallback to team_data picks if available
-                picks = team_data.get('picks', [])
-        else:
-            # Fallback to team_data picks if current_gw not available
-            picks = team_data.get('picks', [])
-        
-        # If still no picks, try to get from different structure
-        if not picks:
-            # Check if picks are in a different structure
-            if 'current' in team_data and 'picks' in team_data['current']:
-                picks = team_data['current']['picks']
-            elif 'squad' in team_data:
-                picks = team_data['squad']
-        
-        # Map player IDs to full player data
-        players_map = {player['id']: player for player in bootstrap_static.get('elements', [])}
-        teams_map = {team['id']: team for team in bootstrap_static.get('teams', [])}
-        
-        # Get position type mapping
+        fixtures = _data_cache.get('fixtures') or []
+
+        detail = fetch_manager_team(team_id, client=client,
+                                    bootstrap=bootstrap_static, fixtures=fixtures)
+
+        # --- the shape static/js/current_team.js expects ------------------
+        elements = {e['id']: e for e in bootstrap_static.get('elements', [])}
+        clubs = {t['id']: t for t in bootstrap_static.get('teams', [])}
         element_types = {et['id']: et for et in bootstrap_static.get('element_types', [])}
-        
-        # Enrich picks with player and team data
+
+        picks_by_position = {'goalkeepers': [], 'defenders': [],
+                             'midfielders': [], 'forwards': []}
         enriched_picks = []
-        for pick in picks:
-            player_id = pick.get('element')
-            player = players_map.get(player_id)
-            if player:
-                team_id_player = player.get('team')
-                team = teams_map.get(team_id_player, {})
-                
-                # Get position type from element_type
-                element_type_id = player.get('element_type')
-                element_type = element_types.get(element_type_id, {})
-                
-                enriched_picks.append({
-                    **pick,
-                    'player': player,
-                    'team': team,
-                    'team_name': team.get('name', 'Unknown'),
-                    'team_short_name': team.get('short_name', 'UNK'),
-                    'element_type': element_type_id,  # Ensure element_type is included
-                    'position_name': element_type.get('plural_name_short', 'FWD')
-                })
-        
-        # Group by position - use element_type from player data
-        positions_map = {1: 'goalkeepers', 2: 'defenders', 3: 'midfielders', 4: 'forwards'}
-        picks_by_position = {
-            'goalkeepers': [],
-            'defenders': [],
-            'midfielders': [],
-            'forwards': []
-        }
-        
-        for pick in enriched_picks:
-            player = pick.get('player', {})
-            position_id = player.get('element_type')
-            if position_id is None:
-                # Try to get from pick itself
-                position_id = pick.get('element_type')
-            
-            position_key = positions_map.get(position_id, 'forwards')
-            if position_key in picks_by_position:
-                picks_by_position[position_key].append(pick)
-        
-        # Calculate team value
-        total_value = sum((p.get('player', {}).get('now_cost', 0) for p in enriched_picks)) / 10.0
-        
-        # Get bank from team data (convert from tenths)
-        bank_value = 0
-        if 'last_deadline_bank' in team_data:
-            bank_value = team_data['last_deadline_bank'] / 10.0
-        elif 'bank' in team_data:
-            bank_value = team_data['bank'] / 10.0 if isinstance(team_data['bank'], int) else team_data['bank']
-        
+        for player in detail['all_players']:
+            raw = elements.get(player['id'])
+            if not raw:
+                continue
+            club = clubs.get(raw['team'], {})
+            kind = element_types.get(raw['element_type'], {})
+            pick = {
+                'element': player['id'],
+                'position': player['squad_position'],
+                'multiplier': player['multiplier'],
+                'is_captain': player['is_captain'],
+                'is_vice_captain': player['is_vice_captain'],
+                'element_type': raw['element_type'],
+                'player': raw,
+                'team': club,
+                'team_name': club.get('name', 'Unknown'),
+                'team_short_name': club.get('short_name', 'UNK'),
+                'position_name': kind.get('plural_name_short', 'FWD'),
+                # from the picking principles
+                'flagged': player['flagged'],
+                'mean_defence': player['mean_defence'],
+                'on_bench': player['on_bench'],
+            }
+            enriched_picks.append(pick)
+            key = {1: 'goalkeepers', 2: 'defenders',
+                   3: 'midfielders', 4: 'forwards'}.get(raw['element_type'], 'forwards')
+            picks_by_position[key].append(pick)
+
+        entry = detail['entry']
         return jsonify({
             'success': True,
             'team': {
-                'id': team_data.get('id'),
-                'player_first_name': team_data.get('player_first_name', ''),
-                'player_last_name': team_data.get('player_last_name', ''),
-                'name': team_data.get('name', ''),
-                'entry': team_data.get('entry'),
-                'total_value': total_value,
-                'bank': bank_value,
-                'total_points': team_data.get('summary_overall_points', 0),
-                'current_gameweek': current_gw
+                'id': entry['id'],
+                'player_first_name': entry['manager'].split(' ')[0] if entry['manager'] else '',
+                'player_last_name': ' '.join(entry['manager'].split(' ')[1:]),
+                'name': entry['team_name'],
+                'entry': entry['id'],
+                'total_value': detail['money']['squad_value'],
+                'bank': detail['money']['bank'],
+                'budget': detail['money']['budget'],
+                'total_points': entry['overall_points'],
+                'overall_rank': entry['overall_rank'],
+                'current_gameweek': entry['gameweek'],
             },
             'picks': picks_by_position,
-            'all_picks': enriched_picks
+            'all_picks': enriched_picks,
+            'detail': detail,
         }), 200
-        
+
+    except FPLTeamError as e:
+        return jsonify({'success': False, 'message': str(e)}), 404
     except Exception as e:
         import traceback
-        # Only include trace in debug mode
-        error_trace = None
+        response = {'success': False, 'message': f'Error fetching team data: {str(e)}'}
         if app.debug:
-            error_trace = traceback.format_exc()
-        
-        response = {
-            'success': False,
-            'message': f'Error fetching team data: {str(e)}'
-        }
-        
-        if error_trace:
-            response['trace'] = error_trace
-            
+            response['trace'] = traceback.format_exc()
         return jsonify(response), 500
+
+
+@app.route('/api/my-team', methods=['POST'])
+def my_team():
+    """
+    Fetch a manager's squad from a team link (or a bare id).
+
+    Body: {"team_link": "https://fantasy.premierleague.com/entry/1234567/"}
+    Optional: {"gameweek": 9}
+
+    Returns the full structure from src.fpl_team.fetch_manager_team: entry
+    details, money, the gameweek summary, the squad by position, the starting
+    eleven, the bench, the captain and every flagged player.
+    """
+    from flask import request
+
+    try:
+        payload = request.get_json(silent=True) or {}
+        team_link = payload.get('team_link') or payload.get('team_id')
+        gameweek = payload.get('gameweek')
+
+        client = FPLAPIClient()
+        if (_data_cache['bootstrap_static'] is None or _should_refresh_cache()):
+            data = client.fetch_all_data()
+            _data_cache['bootstrap_static'] = data.get('bootstrap_static')
+            _data_cache['fixtures'] = data.get('fixtures')
+            _data_cache['last_update'] = time.time()
+
+        detail = fetch_manager_team(
+            team_link, gameweek=gameweek, client=client,
+            bootstrap=_data_cache['bootstrap_static'],
+            fixtures=_data_cache.get('fixtures') or [])
+
+        return jsonify({'success': True, 'team': detail}), 200
+
+    except FPLTeamError as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False,
+                        'message': f'Error fetching team: {str(e)}'}), 500
 
 
 @app.route('/api/extract-team-id', methods=['POST'])
