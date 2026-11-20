@@ -7,7 +7,16 @@
   var raw = document.getElementById('player-data');
   if (!raw) { return; }
   var DATA;
-  try { DATA = JSON.parse(raw.textContent || '{}'); } catch (e) { return; }
+  try {
+    // the build wraps the payload in HTML comment markers so a refresh can
+    // replace it; they are not JSON, so strip them before parsing
+    var text = (raw.textContent || '').replace(/<!--[\s\S]*?-->/g, '').trim();
+    DATA = JSON.parse(text || '{}');
+  } catch (e) {
+    var warn = document.getElementById('browser-count');
+    if (warn) { warn.textContent = 'Player data could not be read.'; }
+    return;
+  }
   if (!DATA.players || !DATA.players.length) { return; }
 
   var MAX_ROWS = 200;
@@ -417,4 +426,77 @@
 
   buildHead();
   render();
+})();
+
+// Click-to-sort for any server-rendered table marked .sortable-table.
+// Numbers are read out of the cell text, so prices, percentages and the
+// en-dash used for "no value" all sort sensibly.
+(function () {
+  'use strict';
+
+  function numberIn(text) {
+    var cleaned = String(text)
+      .replace(/\u2212/g, '-')          // minus sign
+      .replace(/[^0-9.\-]/g, '');
+    if (!cleaned || cleaned === '-' || cleaned === '.') { return null; }
+    var n = parseFloat(cleaned);
+    return isNaN(n) ? null : n;
+  }
+
+  function sortTable(table, index, desc) {
+    var body = table.tBodies[0];
+    if (!body) { return; }
+    var rows = Array.prototype.slice.call(body.rows);
+    var numeric = rows.some(function (r) {
+      return r.cells[index] && numberIn(r.cells[index].textContent) !== null;
+    });
+
+    rows.sort(function (a, b) {
+      var at = a.cells[index] ? a.cells[index].textContent.trim() : '';
+      var bt = b.cells[index] ? b.cells[index].textContent.trim() : '';
+      if (numeric) {
+        var an = numberIn(at), bn = numberIn(bt);
+        if (an === null && bn === null) { return 0; }
+        if (an === null) { return 1; }      // blanks always last
+        if (bn === null) { return -1; }
+        return desc ? bn - an : an - bn;
+      }
+      return desc ? bt.localeCompare(at) : at.localeCompare(bt);
+    });
+
+    rows.forEach(function (r) { body.appendChild(r); });
+  }
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll('table.sortable-table'),
+    function (table) {
+      var head = table.tHead && table.tHead.rows[table.tHead.rows.length - 1];
+      if (!head) { return; }
+      var state = { index: -1, desc: true };
+
+      Array.prototype.forEach.call(head.cells, function (th, index) {
+        if (th.dataset.nosort !== undefined) { return; }
+        th.classList.add('sortable');
+        th.tabIndex = 0;
+        th.setAttribute('role', 'button');
+        var label = th.textContent.trim() || 'this column';
+        th.title = 'Sort by ' + label;
+
+        function apply() {
+          if (state.index === index) { state.desc = !state.desc; }
+          else { state.index = index; state.desc = true; }
+          Array.prototype.forEach.call(head.cells, function (c) {
+            c.classList.remove('sorted', 'asc');
+          });
+          th.classList.add('sorted');
+          if (!state.desc) { th.classList.add('asc'); }
+          sortTable(table, index, state.desc);
+        }
+
+        th.addEventListener('click', apply);
+        th.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); apply(); }
+        });
+      });
+    });
 })();

@@ -36,6 +36,7 @@ SEASON_DATA = os.path.join(PROJECT, "FPL Data")
 sys.path.insert(0, ARTIFACT)
 import build_sections as bs  # noqa: E402
 from build_browser import browser_payload  # noqa: E402
+import build_transfers as bt  # noqa: E402
 sys.path.insert(0, PROJECT)
 from src.fpl_team import fetch_manager_team, FPLTeamError  # noqa: E402
 
@@ -320,6 +321,134 @@ def squad_section(html, squad, problem, season):
     return html
 
 
+
+def _cell(value, cls="num", dash="&#8212;"):
+    return f'<td class="{cls}">{dash if value is None else value}</td>'
+
+
+def _status(flagged, chance, news):
+    if not flagged:
+        return '<span class="ok">Available</span>'
+    label = "OUT" if chance is None else f"{chance}%"
+    return f'<span class="flagwarn" title="{bs.esc(news or "Not fully available")}">{label}</span>'
+
+
+def squad_table(rows):
+    out = []
+    for r in rows:
+        mark = ('<span class="dmark small" title="One of the eight teams conceding fewest'
+                ' goals">D</span>') if r["mean_defence"] and r["pos_id"] in (1, 2) else ""
+        bench = ' <span class="quiet">(bench)</span>' if r["on_bench"] else ""
+        returns = r["returns5"]
+        out.append(
+            "<tr>"
+            + f'<td class="team"><span class="short">{bs.esc(r["web"])}</span> {mark}{bench}</td>'
+            + f'<td class="mid quiet">{bs.esc(r["team"])}</td>'
+            + f'<td class="mid quiet">{bs.esc(r["pos"])}</td>'
+            + f'<td class="num">&pound;{r["price"]:.1f}m</td>'
+            + f'<td class="num strong">{r["points"]}</td>'
+            + f'<td class="num quiet">{r["minutes"]:,}</td>'
+            + _cell(r["goals"]) + _cell(r["assists"]) + _cell(r["clean_sheets"])
+            + _cell(r["pts5"], "num strong") + _cell(r["minutes5"], "num quiet")
+            + _cell(returns)
+            + _cell(None if r["fdr5"] is None else f'{r["fdr5"]:.2f}', "num quiet")
+            + f'<td>{_status(r["flagged"], r["chance"], r["news"])}</td>'
+            + "</tr>")
+    return NL.join(out)
+
+
+def candidate_blocks(by_position):
+    blocks = []
+    for label, pos_id, _title in bt.POSITIONS:
+        title, pool = by_position[label]
+        rows = []
+        for i, p in enumerate(pool, 1):
+            mark = ('<span class="dmark small" title="One of the eight teams conceding'
+                    ' fewest goals">D</span>') if p["mean_defence"] and pos_id in (1, 2) else ""
+            rows.append(
+                "<tr>"
+                + f'<td class="num rank">{i}</td>'
+                + f'<td class="team"><span class="short">{bs.esc(p["web"])}</span> {mark}</td>'
+                + f'<td class="mid quiet">{bs.esc(p["team"])}</td>'
+                + f'<td class="num">&pound;{p["cost"]:.1f}m</td>'
+                + f'<td class="num">{p["pts"]}</td>'
+                + f'<td class="num strong">{p["pts5"]}</td>'
+                + f'<td class="num">{p["returns5"]}</td>'
+                + f'<td class="num quiet">{p["minutes5"]:,}</td>'
+                + _cell(None if p["fdr5"] is None else f'{p["fdr5"]:.2f}', "num quiet")
+                + f'<td class="num strong">{p["score"]:.1f}</td>'
+                + "</tr>")
+        blocks.append(
+            f'<h3 class="subhead">{title} <span>{len(pool)} candidates</span></h3>'
+            + '<div class="scroll"><table class="data sortable-table"><thead><tr>'
+            + '<th class="num">#</th><th>Player</th><th>Team</th><th class="num">Price</th>'
+            + '<th class="num">Pts</th><th class="num">Pts<br>last 5</th>'
+            + '<th class="num">G+A<br>last 5</th><th class="num">Mins<br>last 5</th>'
+            + '<th class="num">Next 5<br>FDR</th><th class="num">Score</th>'
+            + '</tr></thead><tbody>' + NL + NL.join(rows) + NL
+            + "</tbody></table></div>")
+    return NL.join(blocks)
+
+
+def transfers_section(html, squad, recent, fdr_by_team, defence_shorts, note):
+    """Fill the Transfers tab, or say what it is waiting for."""
+    recent_by_id = {p["id"]: p for p in recent}
+
+    if not squad:
+        html = replace_marked(html, "tr-squad-heading", "Your squad goes here")
+        html = replace_marked(
+            html, "tr-squad-lede",
+            "Connect a team on the Current team tab and this fills with your own players, "
+            "each with their season and last-five figures side by side.")
+        html = replace_marked(
+            html, "tr-squad-rows",
+            '<tr><td colspan="14"><div class="setup"><p>Run this once with your team id or '
+            "link:</p><code>python refresh_artifact.py --team 1234567</code></div></td></tr>")
+        html = replace_marked(html, "tr-squad-caption", "")
+        owned = set()
+    else:
+        rows = bt.squad_view(squad, recent_by_id, fdr_by_team)
+        owned = {r["id"] for r in rows}
+        flagged = [r for r in rows if r["flagged"]]
+        html = replace_marked(html, "tr-squad-heading",
+                              f'{bs.esc(squad["entry"]["team_name"])} as it stands')
+        html = replace_marked(
+            html, "tr-squad-lede",
+            "Every player you own, with the whole season on the left and the last five "
+            "matches on the right. The pair is the argument for a transfer: a big season "
+            "total beside a thin last five is a player the game has already moved past."
+            + (f" {len(flagged)} carrying a flag." if flagged else ""))
+        html = replace_marked(html, "tr-squad-rows", NL + squad_table(rows) + NL)
+        html = replace_marked(
+            html, "tr-squad-caption",
+            "<strong>CS</strong> is clean sheets. <strong>Next 5 FDR</strong> is the average "
+            "difficulty of that club's coming five. Click any heading to sort. "
+            '<span class="dmark small">D</span> marks a keeper or defender from one of the '
+            "eight meanest defences.")
+
+    by_position = bt.candidates(recent, owned, fdr_by_team, defence_shorts)
+    total = sum(len(pool) for _t, pool in by_position.values())
+    html = replace_marked(
+        html, "tr-cand-lede",
+        f"{total} players ranked for each position you might buy into &#8212; "
+        f"{bt.CANDIDATES_PER_POSITION} per position, your own players left out, and nobody "
+        "carrying an injury flag. The ranking applies the six principles in their stated "
+        "order: recent points first, weighted by minutes actually played; goals and assists "
+        "on top of that whatever the position; a lift for keepers and defenders from the "
+        "eight meanest defences; and the fixtures ahead only as a tie-breaker.")
+    html = replace_marked(html, "tr-candidates", NL + candidate_blocks(by_position) + NL)
+    html = replace_marked(
+        html, "tr-cand-caption",
+        "<strong>Score</strong> is the ranking itself, and every part of it is a column "
+        "beside it, so a proposal can be argued with rather than taken on trust: last-five "
+        "points scaled by the share of minutes played, plus one and a half points per goal "
+        "or assist, plus two for a keeper or defender from a mean defence, plus a small "
+        "amount for an easy run. Players with under "
+        f"{bt.MIN_RECENT_MINUTES} minutes in the last five matches are left out, because a "
+        "ranking built on recent form needs recent football. " + (note or ""))
+    return html
+
+
 def main():
     argv = sys.argv[1:]
     skip_players = "--no-players" in argv
@@ -572,6 +701,8 @@ def main():
         "would cost you today.")
 
     # --- the player browser and the watchlist ----------------------------
+    with open(os.path.join(ARTIFACT, "browser.js"), encoding="utf-8") as f:
+        html = replace_marked(html, "browser-js", NL + f.read() + NL)
     html = replace_marked(html, "browser-data", browser_payload(bootstrap, defence_ids))
     html = replace_marked(
         html, "browser-lede",
@@ -598,6 +729,17 @@ def main():
         except FPLTeamError as exc:
             squad_problem = str(exc)
     html = squad_section(html, squad, squad_problem, season)
+
+    # --- transfers ---------------------------------------------------------
+    fdr_by_team = {r["short"]: r["fdr5"] for r in ahead}
+    defence_shorts = {r["short"] for r in teams if r.get("defence_mark")}
+    recent_for_transfers = recent if not skip_players and not note else []
+    transfer_note = ("" if recent_for_transfers else
+                     "The last-five figures behind this ranking are missing, so it is "
+                     "running on season totals only &#8212; refresh the stored player "
+                     "histories to restore it.")
+    html = transfers_section(html, squad, recent_for_transfers, fdr_by_team,
+                             defence_shorts, transfer_note)
 
     # --- the current round ------------------------------------------------
     html = replace_marked(html, "round-eyebrow", "The coming round")
